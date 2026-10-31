@@ -1,0 +1,24 @@
+{
+  "panel_url": "https://claude.ai/artifact/<your-panel-id>",
+  "timezone": "Europe/Istanbul",
+  "local_root": "~/Desktop/youtube",
+  "report_language": "English",
+  "channels": [
+    {
+      "slug": "my-shorts-channel",
+      "name": "My Shorts Channel",
+      "channelId": "UCxxxxxxxxxxxxxxxxxxxxxx",
+      "niche": "Data-driven sports comparisons (VS), Top 10 lists",
+      "category": "17",
+      "rules": "Shorts only, 20-50 s, real stock footage, no slideshows, different voice per video"
+    },
+    {
+      "slug": "my-longform-channel",
+      "name": "My Long-form Channel",
+      "channelId": "UCyyyyyyyyyyyyyyyyyyyyyy",
+      "niche": "Evidence-file style explainers: claim -> clues -> verdict, 7-9 min",
+      "category": "27",
+      "rules": "Every video a different voice and visual style; cite sources in the description"
+    }
+  ]
+}
