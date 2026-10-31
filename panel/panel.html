@@ -1,0 +1,284 @@
+<title>Channel Panel</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: broadcast schedule — channels as rows, days as columns; a "today" strip on top, the approval queue and run history below */
+:root{
+  --bg:#eef1f4; --surface:#ffffff; --ink:#18212b; --muted:#5b6672; --line:#d5dbe2;
+  --accent:#0f6e74; --accent-soft:#d6ecec; --warn:#a4580b; --warn-soft:#fbe9d5; --ok:#2f7a3c; --bad:#a3313a;
+  --t-research:#5146a8; --t-shorts:#b0366b; --t-video:#0f6e74; --t-comments:#8a6a0c;
+  --display:"Familjen Grotesk", "Helvetica Neue", Arial, sans-serif;
+  --mono:"JetBrains Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#10161c; --surface:#18212a; --ink:#e6ebf0; --muted:#94a0ad; --line:#2b3642;
+  --accent:#4fb8bd; --accent-soft:#16383b; --warn:#e8a25a; --warn-soft:#3a2a17; --ok:#6cc27a; --bad:#e2747c;
+  --t-research:#a79cf2; --t-shorts:#ee87b4; --t-video:#4fb8bd; --t-comments:#d9b64e; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#10161c; --surface:#18212a; --ink:#e6ebf0; --muted:#94a0ad; --line:#2b3642;
+  --accent:#4fb8bd; --accent-soft:#16383b; --warn:#e8a25a; --warn-soft:#3a2a17; --ok:#6cc27a; --bad:#e2747c;
+  --t-research:#a79cf2; --t-shorts:#ee87b4; --t-video:#4fb8bd; --t-comments:#d9b64e; color-scheme:dark}
+body{background:var(--bg);color:var(--ink);font-family:var(--display);font-size:15px;line-height:1.45;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 48px}
+.wrap{max-width:1180px;margin:0 auto;display:flex;flex-direction:column;gap:28px}
+header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px}
+h1{font-size:28px;font-weight:700;letter-spacing:-.02em;margin:0;text-wrap:balance}
+.sub{color:var(--muted);margin:2px 0 0;font-size:14px}
+.status{font-family:var(--mono);font-size:12px;color:var(--muted)}
+h2{font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:0 0 10px;font-weight:600}
+.today{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:10px}
+.today-head{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;align-items:baseline}
+.today-head strong{font-size:20px}
+.cmd{font-family:var(--mono);font-size:13px;background:var(--accent-soft);color:var(--accent);padding:3px 8px;border-radius:5px}
+.today-list{display:flex;flex-wrap:wrap;gap:8px}
+.tl{display:flex;gap:6px;align-items:center;border:1px solid var(--line);border-radius:999px;padding:4px 10px 4px 6px;font-size:13px}
+.empty{color:var(--muted);font-size:14px}
+.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:13px;color:var(--muted);margin-bottom:10px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.dot{width:9px;height:9px;border-radius:50%;display:inline-block;flex:none}
+.d-research{background:var(--t-research)}.d-shorts{background:var(--t-shorts)}.d-video{background:var(--t-video)}.d-comments{background:var(--t-comments)}
+.scroller{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;min-width:980px}
+th,td{border-bottom:1px solid var(--line);border-right:1px solid var(--line);vertical-align:top;text-align:left}
+th:last-child,td:last-child{border-right:0}
+tr:last-child td{border-bottom:0}
+thead th{font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);padding:10px;font-weight:600}
+thead th.is-today{color:var(--accent);background:var(--accent-soft)}
+td.chan{padding:12px;width:150px;position:sticky;left:0;background:var(--surface);z-index:1}
+td.chan b{display:block;font-size:15px}
+td.chan a{font-size:12px;color:var(--muted);word-break:break-all}
+td.cell{padding:8px;width:118px}
+td.cell.is-today{background:color-mix(in srgb,var(--accent-soft) 45%,transparent)}
+.chips{display:flex;flex-direction:column;gap:4px}
+.chip{display:flex;align-items:center;gap:6px;font:inherit;font-size:12.5px;border:1px solid var(--line);background:transparent;color:var(--muted);
+  border-radius:6px;padding:3px 7px;cursor:pointer;text-align:left;width:100%}
+.chip:hover{border-color:var(--muted)}
+.chip:focus-visible,.btn:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.chip .dot{opacity:.35}
+.chip[aria-pressed="true"]{color:var(--ink);border-color:currentColor;font-weight:600}
+.chip[aria-pressed="true"] .dot{opacity:1}
+.chip.c-research[aria-pressed="true"]{color:var(--t-research)}
+.chip.c-shorts[aria-pressed="true"]{color:var(--t-shorts)}
+.chip.c-video[aria-pressed="true"]{color:var(--t-video)}
+.chip.c-comments[aria-pressed="true"]{color:var(--t-comments)}
+.chip.clash[aria-pressed="true"]{background:var(--warn-soft);color:var(--warn);border-color:var(--warn)}
+.booked{margin-top:6px;width:100%;font:inherit;font-family:var(--mono);font-size:11px;border:1px dashed var(--line);border-radius:5px;
+  background:transparent;color:var(--ink);padding:4px 5px}
+.booked::placeholder{color:var(--muted)}
+.booked.has{border-style:solid;border-color:var(--warn);background:var(--warn-soft);color:var(--warn)}
+.note{font-size:13px;color:var(--muted);margin:8px 2px 0;max-width:72ch}
+.grid2{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:24px}
+@media (max-width:860px){.grid2{grid-template-columns:minmax(0,1fr)}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.row-between{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.switch{display:inline-flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);cursor:pointer}
+.switch input{accent-color:var(--accent);width:16px;height:16px}
+.reply{border-top:1px solid var(--line);padding-top:12px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.reply:first-of-type{border-top:0;padding-top:0}
+.meta{font-size:12px;color:var(--muted);font-family:var(--mono)}
+.quote{font-size:14px;overflow-wrap:anywhere}
+textarea{width:100%;box-sizing:border-box;font:inherit;font-size:14px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);padding:7px;min-height:58px;resize:vertical}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+.btn{font:inherit;font-size:13px;font-weight:600;border-radius:6px;padding:6px 12px;cursor:pointer;border:1px solid var(--line);background:transparent;color:var(--ink)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--surface)}
+.btn.danger{color:var(--bad)}
+.run{border-top:1px solid var(--line);padding-top:10px;display:flex;flex-direction:column;gap:4px;min-width:0}
+.run:first-of-type{border-top:0;padding-top:0}
+.run ul{margin:0;padding-left:18px;font-size:13.5px}
+.pill{font-family:var(--mono);font-size:11px;padding:1px 7px;border-radius:999px;border:1px solid currentColor}
+.p-ok{color:var(--ok)}.p-warn{color:var(--warn)}.p-bad{color:var(--bad)}
+.rk-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px}
+.rk-col{display:flex;flex-direction:column;gap:6px;min-width:0}
+.rk-col h3{font-size:14px;margin:0}
+.rk{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:13.5px;border-top:1px solid var(--line);padding-top:6px;min-width:0}
+.rk a{color:var(--ink);overflow-wrap:anywhere}
+.rk .meta{white-space:nowrap}
+.x{font:inherit;font-size:12px;background:transparent;border:1px solid var(--line);color:var(--muted);border-radius:5px;padding:1px 7px;cursor:pointer}
+.x:hover{color:var(--bad);border-color:var(--bad)}
+.kq{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,2fr) auto auto;gap:4px 14px;align-items:baseline;font-size:13.5px;border-top:1px solid var(--line);padding-top:7px;margin-top:7px}
+.kq:first-child{border-top:0;margin-top:0;padding-top:0}
+.kq .f{font-family:var(--mono);font-size:12px;color:var(--muted);overflow-wrap:anywhere}
+.kq .t{overflow-wrap:anywhere}
+.kq .w{font-family:var(--mono);font-size:12px;white-space:nowrap;font-variant-numeric:tabular-nums}
+@media (max-width:640px){.kq{grid-template-columns:minmax(0,1fr) auto}.kq .t{grid-column:1/-1}}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(18px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);
+  padding:8px 14px;border-radius:8px;font-size:13px}
+@media (prefers-reduced-motion:no-preference){.chip{transition:border-color .12s,color .12s}}
+</style>
+
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Channel Panel</h1>
+      <p class="sub">Weekly task plan for your channels</p>
+    </div>
+    <div class="status" id="status">Connecting…</div>
+  </header>
+
+  <section class="today" aria-labelledby="today-h">
+    <div class="today-head">
+      <strong id="today-h">Today</strong>
+      <span>To run it, tell Claude <span class="cmd">/channel-ops</span></span>
+    </div>
+    <div class="today-list" id="today-list"><span class="empty">Loading plan…</span></div>
+    <div class="row-between" style="border-top:1px solid var(--line);padding-top:10px">
+      <label class="switch"><input type="checkbox" id="autoup">Let Claude upload videos (scheduled)</label>
+      <span class="note" style="margin:0" id="autoup-note">Off: videos land in your upload folder and you upload them yourself.</span>
+    </div>
+  </section>
+
+  <section aria-labelledby="plan-h">
+    <h2 id="plan-h">Weekly plan</h2>
+    <div class="legend">
+      <span><i class="dot d-research"></i>Research</span>
+      <span><i class="dot d-shorts"></i>Make Shorts</span>
+      <span><i class="dot d-video"></i>Make long video</span>
+      <span><i class="dot d-comments"></i>Reply to comments</span>
+      <span><i class="dot" style="background:var(--warn)"></i>Channel already has a release that day</span>
+    </div>
+    <div class="scroller"><table>
+      <thead><tr id="head-row"><th>Channel</th></tr></thead>
+      <tbody id="plan-body"><tr><td class="chan" colspan="8"><span class="empty">Loading plan…</span></td></tr></tbody>
+    </table></div>
+    <p class="note">The small box at the bottom shows what is already booked on the channel that day (e.g. <code>3 Shorts 18:00</code>). On every run Claude updates it from the videos scheduled on YouTube. If you mark Shorts or a video on a booked day, an orange warning appears; the run won't produce anything for that day and moves it to the next free day instead.</p>
+  </section>
+
+  <div class="grid2">
+    <section class="panel" aria-labelledby="rep-h">
+      <div class="row-between">
+        <h2 id="rep-h" style="margin:0">Comment replies awaiting approval</h2>
+        <label class="switch"><input type="checkbox" id="auto">Send without approval</label>
+      </div>
+      <div id="replies"><p class="empty">Loading…</p></div>
+    </section>
+    <section class="panel" aria-labelledby="runs-h">
+      <h2 id="runs-h" style="margin:0">Recent runs</h2>
+      <div id="runs"><p class="empty">Loading…</p></div>
+    </section>
+  </div>
+
+  <section class="panel" aria-labelledby="kq-h">
+    <div class="row-between">
+      <h2 id="kq-h" style="margin:0">Upload queue</h2>
+      <span class="note" style="margin:0">Drag the files into Studio, close without entering details, then tell Claude <span class="cmd">/channel-admin</span>.</span>
+    </div>
+    <div id="queue"><p class="empty">Loading…</p></div>
+  </section>
+
+  <section class="panel" aria-labelledby="rk-h">
+    <h2 id="rk-h" style="margin:0">Tracked competitors</h2>
+    <p class="note" style="margin:0">Each time research runs, it looks at the most-viewed videos and comments from these channels over the last 7 days. Claude fills the list on the first research run. Remove any you don't want; tell Claude about any you'd like to add.</p>
+    <div class="rk-grid" id="competitors"><p class="empty">Loading…</p></div>
+  </section>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+const DAYS=[["mon","Mon"],["tue","Tue"],["wed","Wed"],["thu","Thu"],["fri","Fri"],["sat","Sat"],["sun","Sun"]];
+const TASKS=[["research","Research"],["shorts","Shorts"],["video","Video"],["comments","Comments"]];
+const todayKey=DAYS[(new Date().getDay()+6)%7][0];
+let db=null, channels=[], replies=[], runs=[], settings={autoReply:false}, competitors={}, queue=[];
+const $=s=>document.querySelector(s);
+const el=(t,a={},...kids)=>{const e=document.createElement(t);for(const[k,v]of Object.entries(a)){if(k==="class")e.className=v;else if(k.startsWith("on"))e.addEventListener(k.slice(2),v);else if(v!==undefined&&v!==null&&v!==false)e.setAttribute(k,v===true?"":v)}for(const c of kids.flat()){if(c==null)continue;e.append(c.nodeType?c:document.createTextNode(String(c)))}return e};
+function toast(m){const t=$("#toast");t.textContent=m;t.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>t.hidden=true,2200)}
+const clash=(task,booked)=>{if(!booked)return false;const m=booked.toLowerCase();if(task==="shorts")return /short/.test(m);if(task==="video")return /video|long/.test(m);return false};
+
+function renderHead(){const r=$("#head-row");r.replaceChildren(el("th",{},"Channel"),...DAYS.map(([k,l])=>el("th",{class:k===todayKey?"is-today":null},l+(k===todayKey?" · today":""))))}
+function renderPlan(){
+  const b=$("#plan-body");
+  if(!channels.length){b.replaceChildren(el("tr",{},el("td",{class:"chan",colspan:"8"},el("span",{class:"empty"},"No channels yet — ask Claude to run channel-ops setup, or add docs to the channels collection."))));return}
+  b.replaceChildren(...channels.map(ch=>el("tr",{},
+    el("td",{class:"chan"},el("b",{},ch.name),ch.url?el("a",{href:ch.url,target:"_blank",rel:"noopener"},ch.url.replace(/^https?:\/\/(www\.)?/,"")):null),
+    ...DAYS.map(([dk,dl])=>{
+      const d=(ch.days&&ch.days[dk])||{};const t=d.tasks||{};
+      return el("td",{class:"cell"+(dk===todayKey?" is-today":"")},
+        el("div",{class:"chips"},...TASKS.map(([tk,tl])=>el("button",{type:"button",class:"chip c-"+tk+(t[tk]&&clash(tk,d.booked)?" clash":""),"aria-pressed":String(!!t[tk]),
+          title:t[tk]&&clash(tk,d.booked)?"This channel already has "+d.booked+" on this day":null,onclick:()=>toggle(ch,dk,tk)},el("i",{class:"dot d-"+tk}),tl))),
+        el("input",{class:"booked"+(d.booked?" has":""),id:"b-"+ch.id+"-"+dk,value:d.booked||"",placeholder:"nothing booked","aria-label":ch.name+" "+dl+" booked releases",
+          onchange:e=>setBooked(ch,dk,e.target.value.trim())}))
+    }))));
+}
+function renderToday(){
+  const L=$("#today-list"),lbl=DAYS.find(d=>d[0]===todayKey)[1];
+  $("#today-h").textContent="Today · "+new Date().toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric"});
+  const items=[];
+  for(const ch of channels){const d=(ch.days&&ch.days[todayKey])||{};for(const[tk,tl]of TASKS){if(d.tasks&&d.tasks[tk])items.push(el("span",{class:"tl"},el("i",{class:"dot d-"+tk}),ch.name+" — "+tl+(clash(tk,d.booked)?" (booked day, will be moved)":"")))}}
+  const pend=replies.length;
+  if(pend)items.push(el("span",{class:"tl"},el("i",{class:"dot",style:"background:var(--warn)"}),pend+(pend===1?" reply awaiting approval":" replies awaiting approval")));
+  L.replaceChildren(...(items.length?items:[el("span",{class:"empty"},"No tasks marked for "+lbl+".")]));
+}
+function renderAutoUp(){
+  $("#autoup").checked=!!settings.autoUpload;
+  $("#autoup-note").textContent=settings.autoUpload?"On: Claude schedules each video at the suggested time and uploads it to the channel; files are still kept in the folder as a backup.":"Off: videos land in your upload folder and you upload them yourself.";
+}
+function renderReplies(){
+  const R=$("#replies");$("#auto").checked=!!settings.autoReply;
+  if(!replies.length){R.replaceChildren(el("p",{class:"empty"},"No pending replies. When the comments task runs, Claude puts drafts here; the ones you approve are sent on the next run."));return}
+  R.replaceChildren(...replies.map(r=>{const d=r.data;const ta=el("textarea",{id:"ta-"+r.id,"aria-label":"Reply draft"});ta.value=d.draft||"";
+    return el("div",{class:"reply"},el("div",{class:"meta"},(d.channel||"")+" · "+(d.video||"")+" · @"+(d.author||"")),
+      el("div",{class:"quote"},"“"+(d.comment||"")+"”"),ta,
+      el("div",{class:"actions"},el("button",{class:"btn primary",type:"button",onclick:()=>decide(r,"approved",ta.value)},"Approve"),
+        el("button",{class:"btn danger",type:"button",onclick:()=>decide(r,"rejected",ta.value)},"Don't send")))}));
+}
+function renderRuns(){
+  const R=$("#runs");
+  if(!runs.length){R.replaceChildren(el("p",{class:"empty"},"No runs yet. The summary of the first /channel-ops run will appear here."));return}
+  R.replaceChildren(...runs.map(r=>{const d=r.data;const st=d.status==="ok"?"p-ok":d.status==="error"?"p-bad":"p-warn";
+    return el("div",{class:"run"},el("div",{class:"row-between"},el("span",{class:"meta"},d.date||r.id),el("span",{class:"pill "+st},d.status||"partial")),
+      el("ul",{},...(d.summary||[]).map(x=>el("li",{},x))))}));
+}
+function renderQueue(){
+  const K=$("#queue");
+  if(!queue.length){K.replaceChildren(el("p",{class:"empty"},"Queue is empty. When /channel-ops produces videos, the files show up here as \"awaiting upload\"."));return}
+  const name=s=>(channels.find(c=>c.id===s)||{}).name||s;
+  const when=iso=>{try{return new Date(iso).toLocaleString("en-US",{weekday:"short",month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"})}catch(_){return iso||""}};
+  const rows=[...queue].sort((a,b)=>(a.status==="done")-(b.status==="done")||String(a.publishAt).localeCompare(String(b.publishAt)));
+  K.replaceChildren(...rows.map(q=>{const st=q.status==="done"?["p-ok","✅ ready"]:q.status==="error"?["p-bad","error"]:["p-warn","awaiting your upload"];
+    return el("div",{class:"kq"},el("span",{},el("b",{},name(q.channel)),el("div",{class:"f"},q.file||"")),el("span",{class:"t"},q.title||""),
+      el("span",{class:"w"},when(q.publishAt)),el("span",{class:"pill "+st[0]},st[1]))}));
+}
+const fmt=n=>n>=1e6?(n/1e6).toFixed(1).replace(".0","")+"M":n>=1e3?Math.round(n/1e3)+"K":String(n||0);
+function renderCompetitors(){
+  const R=$("#competitors");
+  if(!channels.length){R.replaceChildren(el("p",{class:"empty"},"No channels yet."));return}
+  R.replaceChildren(...channels.map(ch=>{const l=(competitors[ch.id]&&competitors[ch.id].list)||[];
+    return el("div",{class:"rk-col"},el("h3",{},ch.name),
+      ...(l.length?l.map((r,i)=>el("div",{class:"rk"},el("a",{href:"https://www.youtube.com/channel/"+r.channelId,target:"_blank",rel:"noopener"},r.name),
+        el("span",{class:"meta"},fmt(r.subscribers)+" subscribers"),el("button",{class:"x",type:"button","aria-label":"Remove "+r.name+" from the list",onclick:()=>rmCompetitor(ch.id,i)},"Remove"))):[el("p",{class:"empty",style:"margin:0"},"No competitors yet.")]))}));
+}
+async function rmCompetitor(cid,i){
+  if(!db)return;const l=[...((competitors[cid]&&competitors[cid].list)||[])];const gone=l.splice(i,1)[0];
+  try{await db.doc("competitors/"+cid).update({list:l});toast((gone&&gone.name||"Channel")+" removed from the list")}catch(e){toast("Couldn't save")}
+}
+async function toggle(ch,dk,tk){
+  if(!db)return toast("No connection, change not saved");
+  const days=JSON.parse(JSON.stringify(ch.days||{}));days[dk]=days[dk]||{};days[dk].tasks=days[dk].tasks||{};days[dk].tasks[tk]=!days[dk].tasks[tk];
+  ch.days=days;renderPlan();renderToday();
+  try{await db.doc("channels/"+ch.id).update({days})}catch(e){toast("Couldn't save: "+(e.message||e.code))}
+}
+async function setBooked(ch,dk,v){
+  if(!db)return;const days=JSON.parse(JSON.stringify(ch.days||{}));days[dk]=days[dk]||{tasks:{}};days[dk].booked=v;ch.days=days;renderPlan();renderToday();
+  try{await db.doc("channels/"+ch.id).update({days});toast("Saved")}catch(e){toast("Couldn't save")}
+}
+async function decide(r,status,draft){
+  try{await db.doc("replies/"+r.id).update({status,draft});toast(status==="approved"?"Approved, will be sent on the next run":"Won't be sent")}catch(e){toast("Couldn't save")}
+}
+$("#autoup").addEventListener("change",async e=>{if(!db)return;settings={...settings,autoUpload:e.target.checked};renderAutoUp();try{await db.doc("config/settings").set(settings);toast(e.target.checked?"Claude will upload videos":"You'll upload videos yourself")}catch(_){toast("Couldn't save")}});
+$("#auto").addEventListener("change",async e=>{if(!db)return;try{await db.doc("config/settings").set({...settings,autoReply:e.target.checked});toast(e.target.checked?"Replies will be sent without approval":"Replies will be held for your approval")}catch(_){toast("Couldn't save")}});
+
+renderHead();
+(async()=>{
+  db=window.claude?await claude.use("db"):null;
+  if(!db){$("#status").textContent="No data connection — open the panel on claude.ai";["#today-list","#replies","#runs"].forEach(s=>$(s).replaceChildren(el("span",{class:"empty"},"No connection.")));$("#plan-body").replaceChildren();return}
+  let fresh=false;const timer=setTimeout(()=>{if(!fresh)$("#status").textContent="Can't reach data, retrying…"},10000);
+  const done=()=>{fresh=true;clearTimeout(timer);$("#status").textContent="Synced · "+new Date().toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"})};
+  const err=e=>{clearTimeout(timer);$("#status").textContent="Connection error: "+e.code};
+  db.collection("channels").orderBy("order").onSnapshot(s=>{channels=s.docs.map(d=>({id:d.id,...d.data()}));if(!s.metadata.fromCache)done();renderPlan();renderToday();renderCompetitors();renderQueue()},err);
+  db.collection("queue").orderBy("addedAt","desc").limit(200).onSnapshot(s=>{queue=s.docs.map(d=>({id:d.id,...d.data()}));renderQueue()},err);
+  db.collection("competitors").onSnapshot(s=>{competitors={};s.docs.forEach(d=>competitors[d.id]=d.data());renderCompetitors()},err);
+  db.collection("replies").where("status","==","pending").onSnapshot(s=>{replies=s.docs.map(d=>({id:d.id,data:d.data()}));renderReplies();renderToday()},err);
+  db.collection("runs").orderBy("date","desc").limit(8).onSnapshot(s=>{runs=s.docs.map(d=>({id:d.id,data:d.data()}));renderRuns()},err);
+  db.doc("config/settings").onSnapshot(s=>{settings=s.exists?s.data():{autoReply:false};renderReplies();renderAutoUp()},err);
+})();
+</script>
