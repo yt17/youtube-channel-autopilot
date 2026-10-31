@@ -1,123 +1,97 @@
-# I Run Four YouTube Channels With One Command. Here's the System.
+# How I Run Four YouTube Channels From One Chat Window
 
-*How I turned research, Shorts, long videos, comment replies and scheduling into a set of Claude skills — and got my own job down to "drag files into Studio".*
+*Claude does the research, the videos and the scheduling. I drag a folder into Studio.*
 
 ![The daily loop](https://raw.githubusercontent.com/yt17/youtube-channel-autopilot/main/docs/flow.png)
 
----
+I'm a software developer. I have a full-time job, and on the side I run four small faceless YouTube channels: a sports stats Shorts channel, a pop-culture channel, an "evidence file" explainer channel and an ambient sounds channel.
 
-I'm a software developer with a day job. On the side I run four faceless YouTube channels: a stats Shorts channel, a pop-culture channel, an evidence-style explainer channel and an ambient-sounds channel. Every one of them needs the same boring loop, every week:
+Each one needs the same things every week. Figure out what's working in the niche, make Shorts and long videos, write titles and descriptions, schedule them so they don't collide, answer comments, clean up the files. Multiply that by four and it stops being a hobby.
 
-1. Find out what's working in the niche right now.
-2. Turn that into Shorts and long videos — script, voice, footage, captions, music, thumbnail.
-3. Upload, write titles, descriptions and tags, and schedule into a free slot.
-4. Reply to comments.
-5. Clean up the files.
+So I sat down with Claude and built this. Now a normal day looks like this: I type `/channel-ops`, later I drag a folder into YouTube Studio, then I type `/channel-admin`. That's it.
 
-Four channels × that loop = no life. So I sat down with Claude and built a system where **I type one command in the morning, drag a few folders into YouTube Studio, and type a second command**. Everything else is automated — and every run ends with a report that explains *why* it did what it did.
+The code and skills are on GitHub: [github.com/yt17/youtube-channel-autopilot](https://github.com/yt17/youtube-channel-autopilot)
 
-This post walks through the design. All the code and skills are open source: **[github.com/yt17/youtube-channel-autopilot](https://github.com/yt17/youtube-channel-autopilot)**.
+## What's in it
 
-## The three pieces
+There are three parts.
 
-**1. A planning panel.** A small web page (a Claude Artifact with a built-in database) where each row is a channel and each column a weekday. I click chips — *Research*, *Shorts*, *Video*, *Comments* — to decide what happens on which day. Under each cell there's a box showing what's *already booked* on YouTube that day, refreshed on every run, so I never stack two long videos on the same evening.
+A planning panel. It's a small Claude Artifact with a database behind it. Rows are channels, columns are weekdays, and I click chips like Research, Shorts, Video or Comments to decide what happens when. Each cell also shows what's already scheduled on YouTube that day, so I don't stack two long videos on the same evening by accident.
 
 ![The Channel Panel (demo data)](https://raw.githubusercontent.com/yt17/youtube-channel-autopilot/main/docs/panel.png)
 
-The panel also holds the comment reply drafts waiting for my approval, the upload queue, the list of competitors being tracked, and a log of recent runs.
+Five skills. A skill is just a folder with a `SKILL.md` that tells Claude how to do one job:
 
-**2. Five skills.** A *skill* is a folder with a `SKILL.md` that tells Claude how to do one kind of job. I split the work into five:
+- `/channel-ops` is the manager. It reads today's plan, checks each channel's calendar and starts up to four agents in parallel: comments, research, Shorts and long video.
+- `channel-research` looks at competitors' recent videos, finds the ones that did more than twice their channel's average, reads their comments and comes back with ideas.
+- `channel-production` makes the videos: ten title candidates, three hooks, script, voice, stock footage, sound effects, word-by-word captions, thumbnails, and two Shorts cut out of every long video.
+- `/channel-admin` fills in the details for whatever I just uploaded and schedules it.
+- `/channel-cleanup` checks that uploads really exist on YouTube and moves the local files to a `_to_delete` folder.
 
-| Skill | What it does |
-|---|---|
-| `/channel-ops` | The manager. Reads today's plan, checks each channel's calendar, launches up to four agents **in parallel** (comments, research, Shorts, long video), delivers the files and writes the run report. |
-| `channel-research` | Competitor outliers, niche trends, comment mining, your own channel's winners and losers → 8–10 ideas, top 3 starred. |
-| `channel-production` | 10 title candidates → 1, 3 thumbnail variants, 3 hooks → 1, retention-shaped script, neural voice, cue-sheet SFX, word-by-word captions, SEO package, and two Shorts cut from every long video. |
-| `/channel-admin` | Opens the panel and finalizes whatever I just uploaded: title, description, tags, thumbnail, schedule. |
-| `/channel-cleanup` | Verifies on YouTube that each upload really exists and is scheduled, then moves the local files to `_to_delete/`. |
+I started with one big skill that did everything. It got long and messy fast. Splitting it up made each part easier to fix, and I can run research or production on their own when I want.
 
-Early on I had one giant skill. Splitting it paid off immediately: research and production can be run on their own, the manager stays short, and each skill's instructions are focused enough that the output quality went up.
+A small Python CLI. `ytool.py` talks to the official YouTube Data API. No browser automation, nothing that clicks around YouTube pretending to be me. I didn't want to risk the channels.
 
-**3. A tiny YouTube CLI.** `ytool.py` is ~400 lines of Python over the **official YouTube Data API v3** — no browser bots, nothing that could get a channel flagged. It handles OAuth per channel, unanswered comments, replies, the publishing calendar, competitor videos, trend search, a video's top comments, "pending" uploads, finalizing metadata + schedule, and resumable uploads.
+## The upload trick
 
-## A day in the loop
+This is the part I'm happiest with.
 
-**Morning: `/channel-ops`.** Claude reads the panel, sees that today is, say, *Research* for two channels, *Shorts* for one and *Long video* for another. Before anything else it pulls each channel's YouTube calendar and works out free slots from the channel's own habits (if a channel always posts Shorts at 12:00, 17:00 and 21:00, new Shorts go into the next free one of those). Then it starts the agents in parallel.
+My first plan was to upload everything through the API. That technically works, but YouTube can lock videos uploaded from an unaudited Google Cloud project to private. Getting a project audited is a whole process.
 
-When they finish, files land in one folder per channel — `_to_upload/shorts/<Channel>/` — so I can bulk-drag a whole folder into that channel's Studio. Each video also gets a record in the panel's upload queue with its title, description, tags, thumbnail and planned slot.
+Then I noticed YouTube keeps the original file name of every upload. So now Claude puts finished videos in one folder per channel, and I drag that folder into Studio and close the window without typing anything. Afterwards `/channel-admin` lists my private, unscheduled uploads, matches each one to its queue record by file name, and fills in the title, description, tags, thumbnail and publish time.
 
-**Midday: drag.** I open Studio, drop the folder in, and close the dialog without typing anything. The videos sit there as private drafts.
+Dragging a folder takes ten seconds. Everything I used to type by hand is gone.
 
-**Afterwards: `/channel-admin`.** This is the trick that makes the whole thing work without fighting the API: YouTube keeps the **original file name** of every upload (`fileDetails.fileName`). So the skill lists my unscheduled private uploads, matches each one to its queue record *by file name*, and fills in everything. I never touch a title field.
+The one rule: don't rename the files.
 
-Why not just upload through the API? Uploads from an **unaudited** Google Cloud project can be locked to private by YouTube. Dragging files into Studio myself takes ten seconds and avoids the problem; the API only *edits* videos that are already there. (If you have an audited project, flip "Let Claude upload videos" in the panel and step 2 disappears.)
+## Things that went wrong
 
-**Every few days: `/channel-cleanup`.** It checks each finished upload on YouTube (exists, processed, scheduled or public) before moving the local files to `_to_delete/`. It never deletes anything itself — I empty that folder.
+Plenty did.
 
-## The details that mattered
+While testing the upload command, it actually uploaded an empty video called "test" to one of my channels. It had to be deleted by hand in Studio, and that command is gone now.
 
-**Re-check the calendar at the last second.** The slot chosen in the morning can be taken by the time I upload — I might have scheduled something by hand in between. So `finalize` re-reads the channel's whole schedule right before it sets `publishAt`. If the exact minute is taken, or the time has already passed, it moves the video to the same time on the next free day and reports why:
+When I moved my old files into the new structure, some old plan files said 22 videos were "uploaded". They weren't on YouTube at all. If I had trusted the plan, those would have been lost or uploaded twice. Now nothing gets marked as done until it's checked against the API.
 
-```python
-first = w
-while w.astimezone(dt.timezone.utc).replace(second=0, microsecond=0) in taken:
-    w += dt.timedelta(days=1)
-if w != first:
-    reasons.append("slot already taken in calendar")
-```
+Scheduling also bit me. A slot that was free in the morning can be taken by the time I upload, because I sometimes schedule something by hand in between. So the finalize step now reloads the channel's whole schedule right before setting the publish time. If that minute is taken, or already in the past, it moves the video to the same time on the next free day and tells me why. When I moved 83 old unuploaded videos into the queue, this is what spread them out without collisions.
 
-Nothing is ever published immediately. Every video is `private` + `publishAt`.
+One night a preview played out loud on my laptop. Now every skill has the same rule: never play audio or video on my machine. Checks are done silently with `ffprobe`, loudness analysis and a few still frames.
 
-**Reports with reasons, not just results.** The first version reported "3 Shorts produced". That's useless when you want to know whether to trust it. Now every skill must end with a structured report. Research has to say which competitors it scanned and *why those*, which videos broke out (views/day and how many × the channel average), what viewers keep asking in the comments, why each starred idea was chosen, and every source with a date. Production has to show the top three title candidates with their scores, the claim → source table, which voice was used and how it differs from today's other videos, and the loudness and frame checks. The reports go into the chat, a `reports/` folder and the panel.
+And the cleanup alone freed about 81 GB on my Desktop. I didn't know I was keeping that much junk.
 
-**Outliers over averages.** Research doesn't look at what's popular; it looks at what beat *its own channel's* average by more than 2× in the last week. That's a much stronger signal for a small channel, and it's cheap: the whole research run fits in about 1,200 of the 10,000 daily API quota units.
+## Reports, with reasons
 
-**Mine the comments.** The best ideas came from the comment sections of competitors' outlier videos: "do one on…", "why didn't you mention…", "part 2?". The research skill pulls the top comments of the top three outliers and turns the gaps into ideas.
+The first versions just said things like "3 Shorts produced". That told me nothing about whether to trust the result.
 
-**No slideshows.** The production skill has hard rules: real moving stock footage with reuse-friendly licences, frequent cuts, different voice and caption style for every video made on the same day, no copyrighted music or clips, and full packaging before upload.
+Now every skill has to end with a report that explains itself. Research has to list which competitors it looked at and why those, which videos broke out and by how much, what people keep asking in the comments, why it picked each idea, and every source with a date. Production has to show the top three titles with scores, where each fact came from, which voice it used, and the technical checks. The report lands in the chat, in a `reports/` folder and in the panel.
 
-**Silent checks.** One night a preview started playing out loud on my laptop. Now the rule is in every skill: never play audio or video on my machine. Claude checks with `ffprobe`, loudness analysis and frames pulled from the start, middle and end.
+This changed how I use the system more than anything else. I actually read the reports, and when something looks off I can see where it came from.
 
-**Comment replies with a human in the loop.** The comments agent drafts short replies in each channel's voice and skips spam. Drafts wait in the panel until I hit *Approve* — or I can flip "send without approval".
+## A few rules the videos follow
 
-## What's in the repo
+No slideshows. Real stock footage with licences that allow reuse, lots of cuts, and a different voice and caption style for each video made on the same day. No copyrighted music or clips. Comment replies are drafted, but they wait in the panel until I approve them, unless I switch that off.
+
+## Try it
 
 ```
-skills/
-  channel-ops/SKILL.md          manager: plan → calendar → 4 parallel agents → deliver → report
-  channel-research/SKILL.md     competitors, outliers, trends, comment mining, ideas, report
-  channel-production/SKILL.md   titles, thumbnails, hook, script, voice, SFX, captions, SEO, cuts
-  channel-admin/SKILL.md        open panel + finalize uploads by file name
-  channel-cleanup/SKILL.md      verify on YouTube → _to_delete
-tools/ytool.py                  YouTube Data API v3 CLI (official API only)
-panel/panel.html                the planning panel (Claude Artifact with a database)
-config/config.example.json      your channels, niches and rules
-docs/                           diagrams and screenshots
+skills/            the five skills
+tools/ytool.py     YouTube Data API CLI
+panel/panel.html   the planning panel (Claude Artifact with a database)
+config/            example config: your channels, niches and rules
+docs/              diagram and screenshot
 ```
 
-## Try it with your own channels
-
-1. **Google Cloud:** enable *YouTube Data API v3*, create an OAuth consent screen (External, add yourself as a test user) and an OAuth client of type **Desktop app**. Save the JSON as `$YT_HOME/client_secret.json`.
-2. **Authorize each channel:**
+1. In Google Cloud, enable YouTube Data API v3, set up an OAuth consent screen with yourself as a test user, and create an OAuth client of type Desktop app. Save the JSON as `$YT_HOME/client_secret.json`.
+2. Authorize each channel:
    ```bash
    export YT_HOME=~/youtube/_system
-   python3 tools/ytool.py auth-url my-channel      # open the link, pick the channel
+   python3 tools/ytool.py auth-url my-channel
    python3 tools/ytool.py auth-code my-channel "http://localhost:8765/?code=..."
    python3 tools/ytool.py calendar my-channel
    ```
-3. **Describe your channels** in `$YT_HOME/config.json` (copy `config/config.example.json`): slug, name, channel ID, niche, YouTube category and the rules you want every video to follow.
-4. **Publish the panel:** ask Claude to publish `panel/panel.html` as an Artifact with the database capability, add one `channels/<slug>` document per channel, and put its URL into `panel_url`.
-5. **Add the skills** from `skills/` to Claude and type `/channel-ops`.
+3. Copy `config/config.example.json` to `$YT_HOME/config.json` and describe your channels.
+4. Ask Claude to publish `panel/panel.html` as an Artifact with a database, add your channels, and put its URL in the config.
+5. Add the skills and type `/channel-ops`.
 
-Never commit `client_secret.json` or `tokens/` — the `.gitignore` already excludes them.
+Don't commit `client_secret.json` or the `tokens/` folder. The `.gitignore` already skips them.
 
-## What I'd tell you before you build your own
-
-- **Split the work by responsibility.** One manager plus focused workers beats one skill that knows everything.
-- **Make the human step tiny instead of zero.** Dragging a folder is ten seconds and sidesteps the hardest part of the API.
-- **Ask for reasons.** A report that explains its choices is the difference between automation you check and automation you trust.
-- **Respect the platform.** Official API, scheduled publishing, no bots, licensed footage. The channels are the asset; don't risk them for a shortcut.
-
-The whole system came together over a few long sessions with Claude. Now my weekday YouTube time is one command, one drag and one more command.
-
-*Code, skills and panel: [github.com/yt17/youtube-channel-autopilot](https://github.com/yt17/youtube-channel-autopilot) — MIT licensed.*
+If you build something with it, or find a better way to do the upload part, I'd like to hear about it.
