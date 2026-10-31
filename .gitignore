@@ -1,0 +1,8 @@
+# Never commit credentials
+client_secret*.json
+tokens/
+_system/
+*.token.json
+config.json
+__pycache__/
+.DS_Store
