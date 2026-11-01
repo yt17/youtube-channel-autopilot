@@ -38,7 +38,7 @@ This is the part I'm happiest with.
 
 My first plan was to upload everything through the API. That technically works, but YouTube can lock videos uploaded from an unaudited Google Cloud project to private. Getting a project audited is a whole process.
 
-Then I noticed YouTube keeps the original file name of every upload. So now Claude puts finished videos in one folder per channel, and I drag that folder into Studio and close the window without typing anything. Afterwards `/channel-admin` lists my private, unscheduled uploads, matches each one to its queue record by file name, and fills in the title, description, tags, thumbnail and publish time.
+Then I noticed YouTube keeps the original file name of every upload. So now Claude puts finished videos in one folder per channel, long videos and Shorts kept apart (`_to_upload/videos/<Channel>/` and `_to_upload/shorts/<Channel>/`), and I drag that folder into Studio and close the window without typing anything. Afterwards `/channel-admin` lists my private, unscheduled uploads, matches each one to its queue record by file name, and fills in the title, description, tags, thumbnail and publish time.
 
 Dragging a folder takes ten seconds. Everything I used to type by hand is gone.
 
