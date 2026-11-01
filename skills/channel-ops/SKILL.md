@@ -20,7 +20,7 @@ Reports go in the user's language (`report_language` in config). On-screen text,
   - `queue/<file name>`: `{channel, file, title, description, tags, publishAt, category, thumb, status: pending|done|error, videoId, addedAt, doneAt}`
 - Tool: `tools/ytool.py` with `YT_HOME` holding `client_secret.json` and `tokens/<slug>.json`.
 - Local folder (`local_root`):
-  - `_to_upload/` long videos + thumbnails + `.txt`; `_to_upload/shorts/<Channel name>/` Shorts + `.txt`
+  - `_to_upload/videos/<Channel name>/` long videos + thumbnails + `.txt`; `_to_upload/shorts/<Channel name>/` Shorts + `.txt`. Nothing is left loose in `_to_upload/` itself.
   - `_to_upload/_uploaded/<date>/` finished; `_to_delete/` for the user to trash
   - `reports/`, `research/<YYYY-MM-DD>/<slug>.md`, `_archive/<Channel name>/`
 
@@ -72,14 +72,15 @@ Research and production can run the same day in parallel; production uses existi
 ## 4. Check, upload and deliver
 1. `ffprobe` every video (duration, resolution, audio stream). Broken → don't deliver, report it.
 2. **`autoUpload` true:** `ytool.py upload <slug> <mp4> <same-name.json>` (private + publishAt, thumbnail for long videos). If YouTube locks it private without a schedule (unaudited API project), say "schedule it in Studio" in the report. Back up uploaded files to `_to_upload/_uploaded/<date>/`.
-3. **false (default):** copy files to the local folder: long videos to `_to_upload/`, Shorts to `_to_upload/shorts/<Channel name>/` (one subfolder per channel so the user can bulk-drag each into its own Studio). Large files may need re-encoding or splitting depending on the transfer channel. `.json` sidecars stay in the cloud. Create a `queue/<file name>` record for each video (batch `set`) from the agent's `.json`, with `status: "pending"`.
+3. **false (default):** copy files to the local folder: long videos to `_to_upload/videos/<Channel name>/`, Shorts to `_to_upload/shorts/<Channel name>/` (long videos and Shorts kept apart, one subfolder per channel, so the user can bulk-drag each folder into that channel's Studio). The queue record's `thumb` is relative to `_to_upload/`, e.g. `videos/<Channel name>/<name>_thumb_A.jpg`. Large files may need re-encoding or splitting depending on the transfer channel. `.json` sidecars stay in the cloud. Create a `queue/<file name>` record for each video (batch `set`) from the agent's `.json`, with `status: "pending"`.
 4. Copy research files to `research/<date>/`.
 5. **Upload list:** prepend this run's section to `_to_upload/UPLOAD-LIST.txt`:
    ```
    === Saturday 31 Oct 2026 run ===
-   [Channel A]
-   - shorts/channel-a_2026-10-31_1.mp4 → Thu 5 Nov 21:00 → "<title>"
+   [Channel A] → videos/Channel A/
    - channel-a_2026-10-31.mp4 (+ thumb_B recommended) → Mon 2 Nov 19:00 → "<title>"
+   [Channel A] → shorts/Channel A/
+   - channel-a_2026-10-31_1.mp4 → Thu 5 Nov 21:00 → "<title>"
    ```
 
 ## 5. Log and report (mandatory — every run ends with a reasoned report)
@@ -87,7 +88,7 @@ Merge the agents' reports into **one run report** and put it in three places: th
 
 Order:
 1. **Summary (3–5 lines):** what ran, videos produced, comments, research; overall state.
-2. **📤 Upload list** — per channel: | Channel | File | Type | Publish time | Title |. With manual upload add: "**Your only job:** drag the .mp4s in `_to_upload` (and `shorts/<Channel>`) into that channel's Studio, close without filling anything, then type `/channel-admin`. Don't rename files — matching is by file name."
+2. **📤 Upload list** — per channel: | Channel | File | Type | Publish time | Title |. With manual upload add: "**Your only job:** drag the .mp4s in `_to_upload/videos/<Channel>` and `_to_upload/shorts/<Channel>` into that channel's Studio, close without filling anything, then type `/channel-admin`. Don't rename files — matching is by file name."
 3. **🔎 Research** (per channel): competitors scanned and why they were chosen, what broke out (with numbers), audience gaps, ⭐ chosen ideas + the reason for each, sources, confidence/limits.
 4. **🎬 Production** (per video): why this topic (which evidence), title decision (top 3 candidates + why the winner), sources (claim → link), footage/voice/music and licences, technical check, why this slot, risks.
 5. **💬 Comments:** counts, sent/pending, recurring asks and what they mean for the next content.
