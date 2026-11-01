@@ -8,7 +8,7 @@ description: "After verifying on YouTube that uploaded videos really exist and a
 Reply in the user's language, briefly. This skill **never deletes permanently**; it only moves. It never touches anything on YouTube (read-only checks).
 
 ## Locations (under `local_root`)
-- Sources: `_to_upload/_uploaded/<date>/` (where `/channel-admin` puts finished files), plus files still in `_to_upload/` or `_to_upload/shorts/` whose `queue` record is `done`
+- Sources: `_to_upload/_uploaded/<date>/` (where `/channel-admin` puts finished files), plus files still in `_to_upload/videos/<Channel>/` or `_to_upload/shorts/<Channel>/` whose `queue` record is `done`
 - Target: `_to_delete/<today>/`
 - Panel: `queue/<file name>` records (`status`, `videoId`, `channel`)
 
