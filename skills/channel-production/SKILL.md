@@ -70,7 +70,7 @@ Pick the 2 strongest self-contained segments (30–55 s, first second is a hook)
 
 ## Output
 Under `out/_to_upload/` (file names unique, only letters, digits, `_ - .` — matching after upload is by file name):
-- Long: `<slug>_<YYYY-MM-DD>.mp4`, `.txt`, `.json`, `<slug>_<YYYY-MM-DD>_thumb_A.jpg` / `_B` / `_C`
+- Long: `videos/<slug>_<YYYY-MM-DD>.mp4`, `.txt`, `.json`, `videos/<slug>_<YYYY-MM-DD>_thumb_A.jpg` / `_B` / `_C` (the manager moves them to `_to_upload/videos/<Channel name>/`)
 - Shorts: `shorts/<slug>_<YYYY-MM-DD>_<n>.mp4` + `.txt` + `.json` (cuts: `_cut1`, `_cut2`)
 Working files: `work/<slug>_<format>/`.
 
